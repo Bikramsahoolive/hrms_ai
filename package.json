@@ -1,0 +1,22 @@
+{
+  "name": "open-ai",
+  "version": "1.0.0",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@google/genai": "^2.20.0",
+    "@pinecone-database/pinecone": "^8.2.0",
+    "openai": "^7.8.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2"
+  }
+}
