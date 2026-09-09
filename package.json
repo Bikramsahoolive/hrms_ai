@@ -4,7 +4,9 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js",
+    "dev": "nodemon app.js"
   },
   "keywords": [],
   "author": "",
@@ -12,11 +14,19 @@
   "description": "",
   "dependencies": {
     "@google/genai": "^2.20.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@pinecone-database/pinecone": "^8.2.0",
+    "@toon-format/toon": "^4.1.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "groq-sdk": "^1.6.0",
     "openai": "^7.8.0",
+    "pdf-ts": "^0.0.2",
+    "socket.io": "^4.8.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "nodemon": "^3.1.14"
   }
 }

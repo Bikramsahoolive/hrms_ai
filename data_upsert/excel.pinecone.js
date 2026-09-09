@@ -59,6 +59,7 @@ async function getEmbedding(text, retries = 5, delay = 2000) {
 
 async function main() {
   const rows = readExcelFile('./data/excel/data.xlsx');
+
   console.log(`Found ${rows.length} rows.\n`);
 
   const records = [];
@@ -66,48 +67,72 @@ async function main() {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
 
-    const empId      = String(row['Employee ID']   || `EMP_${i + 1}`);
-    const empName    = String(row['Employee Name'] || 'Unknown');
-    const dept       = String(row['Department']    || 'N/A');
-    const employment = String(row['Employment']    || 'N/A');
+    const empId      = String(row['Employee']   || `EMP_${i + 1}`);
+    const empName    = String(row['Full Name'] || 'Unknown');
+    // const dept       = String(row['Department']    || 'N/A');
+    // const employment = String(row['Employment']    || 'N/A');
 
-    const text = [
-      `Employee ID: ${empId}`,
-      `Name: ${empName}`,
-      `Department: ${dept}`,
-      `Employment: ${employment}`,
-      `Total Days: ${row['Total Days']        || 0}`,
-      `Pay-Out Days: ${row['Pay-Out Days']    || 0}`,
-      `Total Present: ${row['Total Present']  || 0}`,
-      `Total WFO: ${row['Total WFO']          || 0}`,
-      `Total WFH: ${row['Total WFH']          || 0}`,
-      `Total LOP: ${row['Total LOP']          || 0}`,
-      `Total Leaves: ${row['Total Leaves take'] || row['Total Leaves taken'] || 0}`,
-      `Avg Working Hours: ${row['Avg Working Hr'] || 0}`,
-    ].join('. ');
+    // const text = [
+    //   `Employee ID: ${empId}`,
+    //   `Name: ${empName}`,
+    //   `Department: ${dept}`,
+    //   `Employment: ${employment}`,
+    //   `Total Days: ${row['Total Days']        || 0}`,
+    //   `Pay-Out Days: ${row['Pay-Out Days']    || 0}`,
+    //   `Total Present: ${row['Total Present']  || 0}`,
+    //   `Total WFO: ${row['Total WFO']          || 0}`,
+    //   `Total WFH: ${row['Total WFH']          || 0}`,
+    //   `Total LOP: ${row['Total LOP']          || 0}`,
+    //   `Total Leaves: ${row['Total Leaves take'] || row['Total Leaves taken'] || 0}`,
+    //   `Avg Working Hours: ${row['Avg Working Hr'] || 0}`,
+    // ].join('. ');
+
+    const text = Object.entries(row)
+  .filter(([key, val]) => val !== undefined && val !== null && val !== '')
+  .map(([key, val]) => `${key}: ${val}`)
+  .join('. ');
 
     console.log(`[${i + 1}/${rows.length}] ${empName} (${empId})`);
 
     const vector = await getEmbedding(text);
 
     if (vector) {
-      records.push({
-        id: empId,
-        values: vector,
-        metadata: {
-          employeeId:   empId,
-          employeeName: empName,
-          department:   dept,
-          employment,
-          totalPresent: Number(row['Total Present']) || 0,
-          totalLOP:     Number(row['Total LOP'])     || 0,
-          totalWFO:     Number(row['Total WFO'])     || 0,
-          totalWFH:     Number(row['Total WFH'])     || 0,
-          totalLeaves:  Number(row['Total Leaves take'] || row['Total Leaves taken']) || 0,
-          avgWorkingHr: Number(row['Avg Working Hr']) || 0,
-          rawText:      text,
-        },
-      });
+
+
+  const dynamicMetadata = {};
+
+for (const [key, val] of Object.entries(row)) {
+  const formattedKey = toCamelCase(key);
+  dynamicMetadata[formattedKey] = sanitizeMetadataValue(val);
+}
+
+// Always include standard RAG fields
+dynamicMetadata.rawText = text;
+
+records.push({
+  id: empId,
+  values: vector,
+  metadata: dynamicMetadata,
+});
+
+
+      // records.push({
+      //   id: empId,
+      //   values: vector,
+      //   metadata: {
+      //     employeeId:   empId,
+      //     employeeName: empName,
+      //     department:   dept,
+      //     employment,
+      //     totalPresent: Number(row['Total Present']) || 0,
+      //     totalLOP:     Number(row['Total LOP'])     || 0,
+      //     totalWFO:     Number(row['Total WFO'])     || 0,
+      //     totalWFH:     Number(row['Total WFH'])     || 0,
+      //     totalLeaves:  Number(row['Total Leaves take'] || row['Total Leaves taken']) || 0,
+      //     avgWorkingHr: Number(row['Avg Working Hr']) || 0,
+      //     rawText:      text,
+      //   },
+      // });
       console.log(`  ✅ OK — records so far: ${records.length}`);
     } else {
       console.warn(`  ❌ Skipped`);
@@ -135,6 +160,25 @@ async function main() {
   }
 
   console.log(`\n✅ Done — ${records.length} records indexed in Pinecone.`);
+}
+
+
+function sanitizeMetadataValue(val) {
+  if (val === undefined || val === null) return '';
+  // Convert numbers or numeric strings (e.g., "15") to JS Numbers for Pinecone numeric filters
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string' && val.trim() !== '' && !isNaN(Number(val))) {
+    return Number(val);
+  }
+  return String(val);
+}
+
+// Helper to convert column header names like "Total Leaves taken" to camelCase ("totalLeavesTaken")
+function toCamelCase(str) {
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase());
 }
 
 main().catch((err)=>console.error(err));
