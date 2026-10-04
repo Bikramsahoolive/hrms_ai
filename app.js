@@ -42,8 +42,8 @@ app.get('/', (req, res) => {
   res.send('Hello, World!');
 });
 app.post('/chat', async(req, res) => {
-    console.log('Received request:', req.body.prompt);
-  const result = await main(req.body.prompt); 
+    console.log('Received request:', req.body);
+  const result = await main(req.body,res, io); 
   console.log('Sending response:', result);
   res.json({ result });
 });
