@@ -47,14 +47,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description: "The ID of the employee whose leave balance is to be checked.",
             },
-            // {
-            //     REQUESTED_USER_ID: {
-            //         type: "string",
-            //         description: "The ID of the user making the request. This is used for authorization and auditing purposes.",
-            //     }
-            // }
+            requested_user_id:{
+                    type: "string",
+                    description: "The ID of the user making the request. This is used for authorization and auditing purposes."
+            }
           },
-          required: ["employee"],
+          required: ["employee","requested_user_id"],
         },
       },
       {
@@ -64,31 +62,78 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            employee: {
+            requested_user_id: {
               type: "string",
-              description: "The ID of the employee whose attendance details are to be fetched.",
+              description: "The ID of the user making the request. This is used for authorization and auditing purposes.",
             },
-            attendanceDate: {
+            employee: {
+              type: "array",
+              description: "The ID of the employee whose attendance details are to be fetched like ['PTPL000'] and for multiple ['PTPL000','PTPL111'] and  ['ALL'] for all employees.",
+              items: {
+                    type: "string"
+                },
+            },
+            fromDate: {
               type: "string",
               format: "date",
-              description: "The date for which attendance details are to be fetched.",
+              description: "The start date for which attendance details are to be fetched, use ISO 8601 format: YYYY-MM-DD (e.g., 2026-09-09). Do not use MM/DD/YYYY or DD/MM/YYYY.",
             },
-            duration: {
+            toDate: {
               type: "string",
-              description: "The duration for which attendance details are to be, 'daily','weekly','monthly','quarterly' fetched. Default is 'daily'.",
+              format: "date",
+              description: "The end date for which attendance details are to be fetched, use ISO 8601 format: YYYY-MM-DD (e.g., 2026-09-09). Do not use MM/DD/YYYY or DD/MM/YYYY.",
+            },
+            status: {
+              type: "array",
+              description: "The status of the attendance records to be fetched ['Present'] (e.g., Present, Absent, Half Day, On Leave), for multiple statuses, provide an array of strings, given as ['Present', 'Half Day'], or ['ALL'] for all statuses.",
+              items: {
+                    type: "string"
+                },
             },
           },
-          required: ["employee", "attendanceDate", "duration"],
+          required: ["requested_user_id", "employee", "fromDate", "toDate", "status"],
         },
       },
       {
-        name: "pending_requests_count",
+        name: "pending_requests_details",
         description:
-          "Fetches the count of pending requests",
+          "Fetches the details of pending requests like Attendance Request(OD, WFH), Leave Application, Mixed Work, Missed Biometrics Request",
         inputSchema: {
           type: "object",
-          properties: {},
-        },
+          properties: {
+            requested_user_id: {
+              type: "string",
+              description: "The ID of the user making the request. This is used for authorization and auditing purposes.",
+            },
+            request_for:{
+              type: "string",
+              description: "For On Duty (OD) or Work From Home use 'Attendance Request', For Leave related use 'Leave Application', for Missed Biomatrics or punch use 'Missed Biomatric', for Mixed Work related use 'Mixed Work', Default use 'ALL'",
+
+            },
+            employee: {
+              type: "array",
+              description: "The ID of the employee whose attendance details are to be fetched like ['PTPL000'] and for multiple ['PTPL000','PTPL111'] and  ['ALL'] for all employees.",
+              items: {
+                    type: "string"
+                },
+            },
+            fromDate: {
+              type: "string",
+              format: "date",
+              description: "The start date for which request details are to be fetched, use ISO 8601 format: YYYY-MM-DD (e.g., 2026-09-09). Do not use MM/DD/YYYY or DD/MM/YYYY, Default current month start date.",
+            },
+            toDate: {
+              type: "string",
+              format: "date",
+              description: "The end date for which request details are to be fetched, use ISO 8601 format: YYYY-MM-DD (e.g., 2026-09-09). Do not use MM/DD/YYYY or DD/MM/YYYY, Default current month end date.",
+            },
+            reason: {
+              type: "string",
+              description: "Can be 'On Duty' (OD) or 'Work From Home' (wfh) Only for Attendance Request Other wise 'None'",
+            },
+          },
+          required: ["requested_user_id", "employee", "fromDate", "toDate", "reason","request_for"]
+        }
       },
       {
         name: "create_leave_request",
@@ -103,7 +148,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             leaveType: {
               type: "string",
-              description: "The type of leave being requested default is Earned Leave.",
+              description: "The type of leave being requested (Earned Leave, Compensatory Off, Paternity Leave) default is Earned Leave.",
             },
             startDate: {
               type: "string",
@@ -117,11 +162,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             reason: {
               type: "string",
-              description: "The reason for the leave request.",
+              description: "The reason for the leave request, can correct if wrong.",
             },
             halfDay: {
               type: "number",
               description: "Indicates if the leave is for a half day 1 else 0.",
+            },
+            requested_user_id: {
+              type: "string",
+              description: "The ID of the user making the request. This is used for authorization and auditing purposes.",
             },
           },
           required: ["employee", "leaveType", "startDate", "endDate", "reason", "halfDay"],
@@ -193,7 +242,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "attendance_details") {
     // Handle attendance_details tool
     console.log("Received attendance_details tool invocation with input:", request.params.arguments);
-    const { employee, attendanceDate, duration } = request.params.arguments || {};
+    const { requested_user_id, employee, fromDate, toDate, status } = request.params.arguments || {};
 
     try {
         const response = await fetch(`${API_BASE_URL}attendance_details`, {
@@ -202,9 +251,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 "Content-Type": "application/json",
             },
           body: JSON.stringify({
+            requested_user_id,
             employee,
-            attendanceDate,
-            duration
+            fromDate,
+            toDate,
+            status
           }),
         });
 
@@ -238,7 +289,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "check_leave_balance") {
     // Handle check_leave_balance tool
     console.log("Received check_leave_balance tool invocation with input:", request.params.arguments);
-    const { employee } = request.params.arguments || {};
+    const { employee,requested_user_id } = request.params.arguments || {};
 
     try {
         const response = await fetch(`${API_BASE_URL}check_leave_balance`, {
@@ -247,7 +298,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            employee
+            employee,
+            requested_user_id
           }),
         });
 
@@ -279,14 +331,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
 
-    if (request.params.name === "pending_requests_count") {
+    if (request.params.name === "pending_requests_details"){
 
       try {
-        const response = await fetch(`${API_BASE_URL}pending_requests_count`, {
-          method: "GET",
+        const { employee,requested_user_id,fromDate,toDate,reason,request_for } = request.params.arguments || {};
+        const response = await fetch(`${API_BASE_URL}pending_requests_details`,{
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            employee,
+            requested_user_id,
+            request_for,
+            fromDate,
+            toDate,
+            reason
+          }),
         });
 
         const data = await response.json();
@@ -319,7 +380,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "create_leave_request") {
     // Handle create_leave_request tool
     console.log("Received create_leave_request tool invocation with input:", request.params.arguments);
-    const { employee, leaveType, startDate, endDate, reason,halfDay } = request.params.arguments || {};
+    const { requested_user_id,employee, leaveType, startDate, endDate, reason,halfDay } = request.params.arguments || {};
 
     try {
         const response = await fetch(`${API_BASE_URL}create_leave_request`, {
@@ -328,6 +389,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            requested_user_id,
             employee,
             leaveType,
             startDate,

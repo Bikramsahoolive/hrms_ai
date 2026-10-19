@@ -4,6 +4,7 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import {encode} from "@toon-format/toon"
+import logger from './logger.js';
 import 'dotenv/config';
 
 const transport = new StdioClientTransport({
@@ -59,7 +60,7 @@ async function getQueryEmbedding(text, retries = 5, delay = 2000) {
   return null;
 }
 
-async function askEmployeeDatabase(queryPrompt) {
+async function askEmployeeDatabase({queryPrompt,sid}) {
   console.log(`\nQuery: "${queryPrompt}"`);
   
   // 1. Generate Query Vector with Backoff
@@ -114,8 +115,8 @@ async function askEmployeeDatabase(queryPrompt) {
 
 
 
-    const prompt = `You are a helpful HRMS assistant and your name is Prath AI. Answer the user's question, you may use the retrieved employee records below. If the information is not in the context, you can answer your own or may say "I don't know. try to answer in short like below 50 to 100 words"
-
+    const prompt = `You are a helpful HRMS assistant and your name is Prath AI. Answer the user's question with a human touch, you may use the retrieved employee records below. If the information is not in the context, you can answer your own or may say "I don't know". try to answer in short like below 50 to 100 words, also give data in list not in table format, if any one give coding or programming related question then just answer : "I am your HRMS Assistant not your coding Guru 😎", Don't give additional information if not asked,
+requested_user_id: ${atob(sid)}
 To day's date is: ${new Date().toLocaleDateString('en-GB', {timeZone: 'Asia/Kolkata'})}
 CONTEXT DATA:
 ${context}
@@ -246,7 +247,7 @@ ANSWER:`;
 const responseMessage = result.choices[0]?.message;
 
   if (!responseMessage?.tool_calls) {
-    return responseMessage?.content || 'No response from Groq AI.';
+    return responseMessage?.content || 'No response from Prath AI.';
   }
 
 const toolCall = responseMessage.tool_calls[0];
@@ -281,11 +282,13 @@ const toolCall = responseMessage.tool_calls[0];
 
 async function main(prompt) {
   try {
+    const reqLogger = logger.child({ prompt:prompt });
    const answer = await askEmployeeDatabase( prompt);
+    reqLogger.info({answer:answer});
    return answer;
   } catch (error) {
     console.error('Error in main function:', error);
-   return 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later';
+   return 'Prath AI is facing some issue. Please try again later';
   }
 }
 
